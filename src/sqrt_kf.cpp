@@ -13,10 +13,11 @@ namespace sqrt_kf
 {
 	//-------------------------------------------------------------------------
 	//
+	template <class T>
 	void ToMatrix(
-		double A[], 
+		T A[], 
 		size_t rows, size_t cols, 
-		std::vector<double*>& mA)
+		std::vector<T*>& mA)
 	{
 		if (mA.size() != rows)
 		{
@@ -25,6 +26,42 @@ namespace sqrt_kf
 
 		for (size_t i = 0, ii = 0; i < rows; ++i, ii += cols)
 			mA[i] = &A[ii];
+	}
+
+	//-------------------------------------------------------------------------
+	//
+	bool CholUT(int n, const double P[], double S[])
+	{
+		std::vector<const double*> mP(n);
+		ToMatrix(P, n, n, mP);
+
+		std::vector<double*> mS(n);
+		ToMatrix(S, n, n, mS);
+
+		for (int j = n - 1; j >= 0; --j)
+		{
+			for (int i = j; i >= 0; --i)
+			{
+				double sigma = mP[i][j];
+
+				for (int k = j + 1; k < n; ++k)
+				{
+					sigma -= mS[i][k] * mS[j][k];
+				}
+
+				if (i == j)
+				{
+					if (sigma <= 0.0) return false;
+
+					mS[i][j] = sqrt(sigma);
+				}
+				else
+					mS[i][j] = sigma / mS[j][j];
+			}
+			
+		}
+
+		return true;
 	}
 
 	//-------------------------------------------------------------------------
@@ -186,5 +223,141 @@ namespace sqrt_kf
 
 		for (int i = 0; i < n; ++i)
 			x[i] += w[i] * epsilon;
+	}
+
+	//-------------------------------------------------------------------------
+    //
+	void UD_Factor(int n, const double P[], double U[], double D[])
+	{
+		std::vector<const double*> mP(n);
+		ToMatrix(P, n, n, mP);
+
+		std::vector<double*> mU(n);
+		ToMatrix(U, n, n, mU);
+
+		for (int j = n - 1; j >= 0; --j)
+		{
+			for (int i = j; i >= 0; --i)
+			{
+				double sigma = mP[i][j];
+
+				for (int k = j + 1; k < n; ++k)
+					sigma -= mU[i][k] * D[k] * mU[j][k];
+
+				if (i == j)
+				{
+					D[j] = sigma;
+					mU[j][j] = 1.0;
+				}
+				else
+				{
+					mU[i][j] = sigma / D[j];
+				}
+			}
+		}
+	}
+
+	//-------------------------------------------------------------------------
+	//
+	void UD_Predict(
+	    int n, int p,
+		double PhiU[], const double D[],
+		double Um[], double Dm[],
+		double GUq[], double Dq[])
+	{
+		std::vector<double*> mPhiU(n);
+		ToMatrix(PhiU, n, n, mPhiU);
+
+		std::vector<double*> mU(n);
+		ToMatrix(Um, n, n, mU);
+
+		std::vector<double*> mGUq(n);
+		ToMatrix(GUq, n, p, mGUq);
+
+		for (int i = n - 1; i >= 0; --i)
+		{
+			double sigma = 0.0;
+
+			for (int j = 0; j < n; ++j)
+				sigma += mPhiU[i][j] * mPhiU[i][j] * D[j];
+
+			for (int j = 0; j < p; ++j)
+			{
+				sigma += mGUq[i][j] * mGUq[i][j] * Dq[j];
+			}
+				
+
+			Dm[i] = sigma;
+			double inv_D = 1.0 / Dm[i];
+			mU[i][i] = 1.0;
+
+			for (int j = 0; j < i; ++j)
+			{
+				sigma = 0;
+
+				for (int k = 0; k < n; ++k)
+					sigma += mPhiU[i][k] * D[k] * mPhiU[j][k];
+
+				for (int k = 0; k < p; ++k)
+					sigma += mGUq[i][k] * Dq[k] * mGUq[j][k];
+
+				mU[j][i] = sigma * inv_D;
+
+				for (int k = 0; k < n; ++k)
+					mPhiU[j][k] -= mU[j][i] * mPhiU[i][k];
+
+				for (int k = 0; k < p; ++k)
+					mGUq[j][k] -= mU[j][i] * mGUq[i][k];
+			}
+		}
+	}
+
+	//-------------------------------------------------------------------------
+	//
+	void BiermanUpdate(
+		int n, double x[],
+		double U[], double D[],
+		double z, double H[], double R)
+	{
+		std::vector<double*> mU(n);
+		ToMatrix(U, n, n, mU);
+
+		std::vector<double> v(n, 0);
+		std::vector<double> w(n, 0);
+
+		double delta = z;
+
+		for (int j = 0; j < n; ++j)
+		{
+			delta -= H[j] * x[j];
+			v[j] = H[j];
+
+			for (int i = 0; i < j; ++i)
+				v[j] += mU[i][j] * H[i];
+		}
+
+		double sigma = R;
+
+		for (int j = 0; j < n; ++j)
+		{
+			double nu = v[j];
+			v[j] *= D[j];
+			w[j] = v[j];
+			for (int i = 0; i < j; ++i)
+			{
+				double tau = mU[i][j] * v[j];
+				mU[i][j] -= nu * w[i] / sigma;
+				w[i] += tau;
+			}
+
+			D[j] *= sigma;
+			sigma += nu * v[j];
+			D[j] /= sigma;
+		}
+
+		delta /= sigma;
+		for (int i = 0; i < n; ++i)
+			x[i] += w[i] * delta;
+			
 	}
 }

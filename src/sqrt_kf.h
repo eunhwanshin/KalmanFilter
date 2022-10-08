@@ -7,7 +7,18 @@
 namespace sqrt_kf
 {
 	//-------------------------------------------------------------------------
-	// This function can be used to implement squre-root Kalman prediction with
+	// @brief Computes an upper-triangular matrix S such that P = S * S'
+	//
+	// @param[in]  n   Dimension of the matrix
+	// @param[in]  P   (n x n) symmetric positive definite matrix
+	// @param[out] S   Upper-triangular Cholesky factor
+	//
+	// @return true if positive definite
+	//
+	bool CholUT(int n, const double P[], double S[]);
+
+	//-------------------------------------------------------------------------
+	// @brief This function can be used to implement squre-root Kalman prediction with
 	//     A = [ Phi*C(+),   G*Cq] 
 	// where C(+) C(+)' = P(+) and Cq Cq'= Q.
 	// The resulting C(-) is stored in the upper-right triangular part.
@@ -22,7 +33,7 @@ namespace sqrt_kf
 		int n, int r);
 
 	//-------------------------------------------------------------------------
-	// Carlson's Squar-Root Measurement Update
+	// @brief Carlson's Squar-Root Measurement Update
 	//
 	// @param[in]     n  Number of states
 	// @param[in/out] x  State vector (n x 1)
@@ -34,5 +45,49 @@ namespace sqrt_kf
 	void CarlsonMeasUpdate(
 		int n,
 		double x[], double C[], 
+		double z, double H[], double R);
+
+	//-------------------------------------------------------------------------
+	// @brief Computes U and D matrix such that P = U * D * U'
+	// 
+	// @param[in]  n  Dimension of matrix
+	// @param[in]  P  (n x n) symmetric positive definite matrix
+	// @param[out] U  Upper-triangular factor
+	// @param[out] D  Diagonal factor; store only diagonal elements
+	//
+	void UD_Factor(int n, const double P[], double U[], double D[]);
+
+	//-------------------------------------------------------------------------
+	// @brief Kalman covariance prediction in UD-factored form:
+	//
+	// @param[in]     n    Number of the states
+	// @param[in]     p    Number of system noise parameters
+	// @param[in]     PhiU Phi * U
+	// @param[in]     D    Diagonal factor of the covariance
+	// @param[out]    Um   Predicted U: U(-)
+	// @param[out]    Dm   Predicted D: D(-)
+	// @param[in/out] GUq  G * Uq, where Q = Uq * Dq * Uq'
+	// @param[in/out] Dq   Diagonal factor of Q
+	// 
+	void UD_Predict(
+		int n, int p,
+		double PhiU[], const double D[],
+		double Um[], double Dm[],
+		double GUq[], double Dq[]);
+
+	//-------------------------------------------------------------------------
+	// @brief Kalman measurement update in UD-factored form:
+	//
+	// @param[in]     n Number of states
+	// @param[in/out] x state vector
+	// @param[in/out] U factor of the covariance
+	// @param[in/out] D factor of the covariance
+	// @param[in]     z Measurement
+	// @param[in]     H Sensitivity matrix
+	// @param[in]     R Measurement uncertainty
+	//
+	void BiermanUpdate(
+		int n, double x[],
+		double U[], double D[],
 		double z, double H[], double R);
 }
