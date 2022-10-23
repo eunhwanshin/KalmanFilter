@@ -1,9 +1,15 @@
 #pragma once
 
+#include <functional>
+//
 // Eun Hwan Shin, 2022
-// Reference: Mohinder S. Grewal and Angus P. Andrews. (2001).
-//   Kalman Filgering: Theorey and Practice, 2nd Ed., John-Wiley & Sons, Inc.
-
+// 
+// References: 
+// [1] Mohinder S. Grewal and Angus P. Andrews. (2001).
+//     Kalman Filgering: Theorey and Practice, 2nd Ed., John-Wiley & Sons, Inc.
+// [2] Gerald J. Bierman. (1977).
+//     Factorization Methods for Discrete Sequential Estimation, Academic Press, Inc.
+//
 namespace sqrt_kf
 {
 	//-------------------------------------------------------------------------
@@ -89,5 +95,23 @@ namespace sqrt_kf
 	void BiermanUpdate(
 		int n, double x[],
 		double U[], double D[],
+		double z, double H[], double R);
+
+	//-------------------------------------------------------------------------
+   // @brief Kalman measurement update in UD-factored form with UD storage in
+	//        generic form.
+	// Reference: [2], pp. 100-101.
+	// 
+	// @param[in]     n     Number of states
+	// @param[in/out] x     State vecor
+	// @param[in/out] UD    UD-factored covariance with diagonals storing D
+	// @param[in]     f_idx UD element indexing function
+	// @param[in]     z     Measurement
+	// @param[in]     H     Measurement sensitivity matrix
+	// @param[in]     R     Measurement uncertainty variance
+	//
+	void UD_Update(
+		int n, double x[], double UD[],
+		std::function<int(int, int)> f_idx,
 		double z, double H[], double R);
 }

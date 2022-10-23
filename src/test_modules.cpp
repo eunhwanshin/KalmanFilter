@@ -3,6 +3,11 @@
 
 #include "sqrt_kf.h"
 
+int UD_Index(int row, int col)
+{
+	return row + col * (col + 1) / 2;
+}
+
 void PrintMatrix(const double A[], int rows, int cols, const char* name)
 {
 	std::cout << name << std::endl;
@@ -11,6 +16,21 @@ void PrintMatrix(const double A[], int rows, int cols, const char* name)
 	{
 		for (int j = 0; j < cols; ++j)
 			std::cout << " " << std::fixed << std::setprecision(6) << A[i1 + j];
+
+		std::cout << std::endl;
+	}
+}
+
+void PrintUD(const double UD[], int rows, int cols, const char* name)
+{
+	std::cout << name << std::endl;
+
+	for (int i = 0, i1 = 0; i < rows; ++i, i1 += cols)
+	{
+		for (int j = 0; j < i; ++j)
+			std::cout << " " << std::fixed << std::setprecision(6) << 0.0;
+		for (int j = i; j < cols; ++j)
+			std::cout << " " << std::fixed << std::setprecision(6) << UD[UD_Index(i,j)];
 
 		std::cout << std::endl;
 	}
@@ -62,6 +82,21 @@ void TestUD(void)
 
 	memcpy(D, Dm, sizeof(D));
 
+	// Copy U and D into vectorized UD
+	double UD[n * (n + 1) / 2];
+
+	for (int j = 0; j < n; ++j)
+	{
+		for (int i = 0; i < j; ++i)
+		{
+			UD[UD_Index(i, j)] = U[i * n + j];
+		}
+
+		UD[UD_Index(j, j)] = Dm[j];
+	}
+
+	PrintUD(UD, n, n, "UD(-)");
+
 	double x[n] = { 0 };
 	double z = 1.0;
 	double H[5] = { 0.878975,   0.207268,   0.098002,   0.943587,   0.244249 };
@@ -72,6 +107,15 @@ void TestUD(void)
 	PrintMatrix(x, 1, n, "x(+)");
 	PrintMatrix(U, n, n, "U(+)");
 	PrintMatrix(D, 1, n, "D(+)");
+
+	memset(x, 0, sizeof(x));
+	double a[5] = { 0.878975,   0.207268,   0.098002,   0.943587,   0.244249 };
+
+	sqrt_kf::UD_Update(n, x, UD, UD_Index, z, a, R);
+
+	PrintMatrix(x, 1, n, "x(+)");
+	PrintUD(UD, n, n, "UD(+)");
+
 }
 
 void TestChol(void)

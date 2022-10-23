@@ -360,4 +360,67 @@ namespace sqrt_kf
 			x[i] += w[i] * delta;
 			
 	}
+
+	//-------------------------------------------------------------------------
+	//
+	void UD_Update(
+		int n, double x[], double UD[], 
+		std::function<int(int, int)> f_idx,
+		double z, double a[], double R)
+	{
+		// Compute innovation: z= z - a*x
+		for (int j = 0; j < n; ++j)
+		{
+			z -= a[j] * x[j];
+		}
+
+		// Unweighted Kalman gain: K = b/alpha
+		std::vector<double> b(n);
+
+		// b = D*U'*a; a = U'*a
+		for (int j = n - 1; j > 0; --j)
+		{
+			for (int k = 0; k < j; ++k)
+			{
+				a[j] += UD[f_idx(k, j)] * a[k];
+			}
+			b[j] = UD[f_idx(j, j)] * a[j];
+		}
+
+		b[0] = UD[f_idx(0, 0)] * a[0];
+
+		// variance of the innovation
+		double alpha = R + b[0] * a[0];
+		double gamma = 1. / alpha;
+
+		UD[f_idx(0, 0)] *= R * gamma;
+
+		for (int j = 1; j < n; ++j)
+		{
+			double beta = alpha;
+			alpha += b[j] * a[j];
+			double lambda = -a[j] * gamma;
+
+			gamma = 1. / alpha;
+
+			UD[f_idx(j, j)] *= beta * gamma;
+
+			for (int i = 0; i < j; ++i)
+			{
+				double& uij = UD[f_idx(i, j)];
+				beta = uij;
+
+				uij = beta + b[i] * lambda;
+				b[i] += b[j] * beta;
+
+			}
+		}
+
+		z *= gamma;
+
+		for (int j = 0; j < n; ++j)
+		{
+			x[j] += b[j] * z;
+		}
+	}
 }
